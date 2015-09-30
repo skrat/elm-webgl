@@ -1,5 +1,4 @@
 import Graphics.Element exposing (..)
-import Http exposing (..)
 import Math.Vector2 exposing (Vec2)
 import Math.Vector3 exposing (..)
 import Math.Matrix4 exposing (..)
@@ -27,14 +26,9 @@ texture =
   Signal.mailbox (Nothing)
 
 
--- port textureFetcher : Task WebGL.Error ()
--- port textureFetcher =
---   loadTexture "/texture/woodCrate.jpg"
---     `Task.andThen` \tex -> Signal.send texture.address (Just tex)
-
 port textureFetcher : Task a ()
 port textureFetcher =
-  Task.toMaybe (loadTexture "/texture/woodCrate.jpg")
+  Task.toMaybe (loadTexture "/examples/textures/woodCrate.jpg")
     `Task.andThen` \tex -> Signal.send texture.address tex
 
 
