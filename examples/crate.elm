@@ -24,33 +24,48 @@ angle =
 
 texture : Signal.Mailbox (Maybe Texture)
 texture =
-  Signal.mailbox Nothing
+  Signal.mailbox (Nothing)
 
 
-port textureFetcher : Task WebGL.Error ()
+-- port textureFetcher : Task WebGL.Error ()
+-- port textureFetcher =
+--   loadTexture "/texture/woodCrate.jpg"
+--     `Task.andThen` \tex -> Signal.send texture.address (Just tex)
+
+port textureFetcher : Task a ()
 port textureFetcher =
-  loadTexture "/texture/woodCrate.jpg"
-    `Task.andThen` \tex -> Signal.send texture.address (Just tex)
+  Task.toMaybe (loadTexture "/texture/woodCrate.jpg")
+    `Task.andThen` \tex -> Signal.send texture.address tex
 
 
 -- MESHES
 
-crate : List (Triangle { pos:Vec3, coord:Vec3 })
+type alias Vertex =
+    { pos:Vec3, coord:Vec3 }
+
+type alias Triangle = (Vertex, Vertex, Vertex)
+
+vertexMap : (Vertex -> Vertex) -> Triangle -> Triangle
+vertexMap f (x,y,z) =
+  (f x, f y, f z)
+
+
+crate : Drawable Vertex
 crate =
-  List.concatMap rotatedFace [ (0,0), (90,0), (180,0), (270,0), (0,90), (0,-90) ]
+  Triangle (List.concatMap rotatedFace [ (0,0), (90,0), (180,0), (270,0), (0,90), (0,-90) ])
 
 
-rotatedFace : (Float,Float) -> List (Triangle { pos:Vec3, coord:Vec3 })
+rotatedFace : (Float,Float) -> List Triangle
 rotatedFace (angleX,angleY) =
   let
     x = makeRotate (degrees angleX) (vec3 1 0 0)
     y = makeRotate (degrees angleY) (vec3 0 1 0)
     t = x `mul` y `mul` makeTranslate (vec3 0 0 1)
   in
-    List.map (WebGL.map (\x -> {x | pos <- transform t x.pos })) face
+    List.map (vertexMap (\x -> {x | pos <- transform t x.pos })) face
 
 
-face : List (Triangle { pos:Vec3, coord:Vec3 })
+face : List Triangle
 face =
   let
     topLeft     = { pos = vec3 -1  1 0, coord = vec3 0 1 0 }
@@ -85,14 +100,14 @@ camera =
   makeLookAt (vec3 0 0 5) (vec3 0 0 0) (vec3 0 1 0)
 
 
-view : Maybe Texture -> Mat4 -> List Entity
+view : Maybe Texture -> Mat4 -> List Renderable
 view maybeTexture perspective =
   case maybeTexture of
     Nothing ->
         []
 
     Just tex ->
-        [entity vertexShader fragmentShader crate { crate = tex, perspective = perspective }]
+        [render vertexShader fragmentShader crate { crate = tex, perspective = perspective }]
 
 
 -- SHADERS
